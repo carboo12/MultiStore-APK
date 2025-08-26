@@ -16,10 +16,10 @@ class BillingPage extends StatefulWidget {
   const BillingPage({super.key});
 
   @override
-  State<BillingPage> createState() => _BillingPageState();
+  State<BillingPage> createState() => BillingPageState();
 }
 
-class _BillingPageState extends State<BillingPage> {
+class BillingPageState extends State<BillingPage> {
   final List<CartItem> _cart = [];
   Customer? _selectedCustomer;
   List<Customer> _customers = [];

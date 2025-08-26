@@ -32,7 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
   final ScannerService _scannerService = ScannerService();
-  final GlobalKey<_BillingPageState> _billingPageKey = GlobalKey<_BillingPageState>();
+  final GlobalKey<BillingPageState> _billingPageKey = GlobalKey<BillingPageState>();
   StreamSubscription? _scanSubscription;
 
   late final List<_DashboardTab> _tabs;
