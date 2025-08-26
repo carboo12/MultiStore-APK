@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:myapp/model/admin_role.dart';
 
 part 'admin_model.g.dart';
 
@@ -16,10 +17,14 @@ class Admin extends HiveObject {
   @HiveField(3)
   final String storeLicenseKey;
 
+  @HiveField(4)
+  final AdminRole role;
+
   Admin({
     required this.fullName,
     required this.username,
     required this.password,
     required this.storeLicenseKey,
+    required this.role,
   });
 }

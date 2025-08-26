@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
 import 'package:myapp/model/admin_model.dart';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:myapp/screens/register_store_screen.dart';
 import 'package:myapp/screens/dashboard_screen.dart';
 
@@ -44,17 +45,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // 2. Admin check using Hive
     final adminBox = Hive.box<Admin>('admins');
-    // Usamos firstWhere para encontrar al admin de una forma más concisa.
-    // El `orElse` devuelve null si no se encuentra ninguna coincidencia.
-    final foundAdmin = adminBox.values.cast<Admin?>().firstWhere(
-        (admin) => admin?.username == username && admin?.password == password,
-        orElse: () => null);
+    // Primero, encontramos al usuario por su nombre de usuario.
+    final potentialAdmin = adminBox.values
+        .cast<Admin?>()
+        .firstWhere((admin) => admin?.username == username, orElse: () => null);
 
-    if (foundAdmin != null) {
+    // Si encontramos un usuario, comparamos la contraseña hasheada.
+    // BCrypt.checkpw se encarga de comparar el texto plano con el hash.
+    if (potentialAdmin != null &&
+        BCrypt.checkpw(password, potentialAdmin.password)) {
       // Navigate to Dashboard
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => DashboardScreen(admin: foundAdmin)),
+        MaterialPageRoute(
+            builder: (context) => DashboardScreen(admin: potentialAdmin)),
         (route) => false,
       );
     } else {

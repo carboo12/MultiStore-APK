@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:myapp/model/store_model.dart';
 import 'package:myapp/model/admin_model.dart';
+import 'package:myapp/model/admin_role.dart';
 import 'package:myapp/screens/login_screen.dart';
 
 class RegisterAdminAddScreen extends StatefulWidget {
@@ -9,6 +11,7 @@ class RegisterAdminAddScreen extends StatefulWidget {
   const RegisterAdminAddScreen({super.key, required this.store});
 
   @override
+  // ignore: library_private_types_in_public_api
   _RegisterAdminAddScreenState createState() => _RegisterAdminAddScreenState();
 }
 
@@ -18,6 +21,8 @@ class _RegisterAdminAddScreenState extends State<RegisterAdminAddScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  AdminRole _selectedRole = AdminRole.admin;
 
   late final TextEditingController _storeNameController;
   late final TextEditingController _storeEmailController;
@@ -42,11 +47,16 @@ class _RegisterAdminAddScreenState extends State<RegisterAdminAddScreen> {
 
   void _createAdminAccount() async {
     if (_formKey.currentState?.validate() ?? false) {
+      // Hashea la contraseña antes de guardarla.
+      // BCrypt.gensalt() genera una "sal" aleatoria para asegurar que cada hash sea único.
+      final String hashedPassword = BCrypt.hashpw(_passwordController.text, BCrypt.gensalt());
+
       final newAdmin = Admin(
           fullName: _fullNameController.text,
           username: _usernameController.text,
-          password: _passwordController.text,
-          storeLicenseKey: widget.store.licenseKey);
+          password: hashedPassword,
+          storeLicenseKey: widget.store.licenseKey,
+          role: _selectedRole);
 
       final adminBox = Hive.box<Admin>('admins');
       await adminBox.add(newAdmin);
@@ -199,6 +209,26 @@ class _RegisterAdminAddScreenState extends State<RegisterAdminAddScreen> {
             if (value == null || value.isEmpty) return 'Please confirm your password';
             if (value != _passwordController.text) return 'Passwords do not match';
             return null;
+          },
+        ),
+        const SizedBox(height: 16.0),
+        DropdownButtonFormField<AdminRole>(
+          value: _selectedRole,
+          decoration: InputDecoration(
+            labelText: 'Role',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+          ),
+          items: AdminRole.values.map((AdminRole role) {
+            final roleName = role.name;
+            return DropdownMenuItem<AdminRole>(
+              value: role,
+              child: Text(roleName[0].toUpperCase() + roleName.substring(1)),
+            );
+          }).toList(),
+          onChanged: (AdminRole? newValue) {
+            if (newValue != null) setState(() => _selectedRole = newValue);
           },
         ),
       ],

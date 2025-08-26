@@ -1,20 +1,136 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:myapp/model/customer_model.dart';
+import 'package:myapp/model/product_model.dart';
+
+class CartItem {
+  final Product product;
+  int quantity;
+
+  CartItem({required this.product, this.quantity = 1});
+
+  double get totalPrice => product.price * quantity;
+}
 
 class BillingPage extends StatefulWidget {
-  final String lastScan;
-  const BillingPage({super.key, required this.lastScan});
+  const BillingPage({super.key});
 
   @override
-  _BillingPageState createState() => _BillingPageState();
+  State<BillingPage> createState() => _BillingPageState();
 }
 
 class _BillingPageState extends State<BillingPage> {
-  // TODO: Implement actual customer selection and cart management
-  String _selectedCustomer = 'General Public';
-  final bool _isCartEmpty = true;
-  final double _subtotal = 0.00;
-  final double _iva = 0.00;
-  final double _total = 0.00;
+  final List<CartItem> _cart = [];
+  Customer? _selectedCustomer;
+  List<Customer> _customers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomers();
+  }
+
+  void _loadCustomers() {
+    final customerBox = Hive.box<Customer>('customers');
+    // Use listenable to update if customers are added while on this page
+    customerBox.listenable().addListener(() {
+      if (mounted) {
+        setState(() {
+          _customers = customerBox.values.toList();
+          // If the selected customer was deleted, reset the selection
+          if (_selectedCustomer != null &&
+              !_customers.any((c) => c.id == _selectedCustomer!.id)) {
+            _selectedCustomer = null;
+          }
+        });
+      }
+    });
+    // Initial load
+    if (mounted) {
+      setState(() {
+        _customers = customerBox.values.toList();
+      });
+    }
+  }
+
+  void addProductByBarcode(String barcode) {
+    final productBox = Hive.box<Product>('products');
+    final product = productBox.values
+        .cast<Product?>()
+        .firstWhere((p) => p?.barcode == barcode, orElse: () => null);
+
+    if (!mounted) return;
+
+    if (product == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Producto no encontrado.'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (product.stock <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Producto "${product.name}" sin stock.'),
+            backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    setState(() {
+      final existingCartItemIndex =
+          _cart.indexWhere((item) => item.product.id == product.id);
+
+      if (existingCartItemIndex != -1) {
+        if (_cart[existingCartItemIndex].quantity < product.stock) {
+          _cart[existingCartItemIndex].quantity++;
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('No hay más stock para "${product.name}".'),
+                backgroundColor: Colors.orange),
+          );
+        }
+      } else {
+        _cart.add(CartItem(product: product));
+      }
+    });
+  }
+
+  void _incrementQuantity(CartItem item) {
+    setState(() {
+      if (item.quantity < item.product.stock) {
+        item.quantity++;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('No hay más stock para "${item.product.name}".')),
+        );
+      }
+    });
+  }
+
+  void _decrementQuantity(CartItem item) {
+    setState(() {
+      if (item.quantity > 1) {
+        item.quantity--;
+      } else {
+        _cart.remove(item);
+      }
+    });
+  }
+
+  void _clearCart() {
+    setState(() {
+      _cart.clear();
+    });
+  }
+
+  double get _subtotal => _cart.fold(0, (sum, item) => sum + item.totalPrice);
+  double get _iva => _subtotal * 0.16; // Assuming 16% IVA
+  double get _total => _subtotal + _iva;
 
   @override
   Widget build(BuildContext context) {
@@ -23,156 +139,141 @@ class _BillingPageState extends State<BillingPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Customer Section
-            const Text(
-              'Customer',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            _buildCustomerSelector(),
+            const SizedBox(height: 24),
+            Text('Carrito de Compras',
+                style: Theme.of(context).textTheme.titleLarge),
+            const Divider(),
+            Expanded(
+              child: _cart.isEmpty
+                  ? const Center(
+                      child: Text('Escanee un producto para comenzar la venta.'),
+                    )
+                  : _buildCartList(),
             ),
-            const SizedBox(height: 8),
-            Row(
+            if (_cart.isNotEmpty) _buildSummary(),
+          ],
+        ),
+      );
+  }
+
+  Widget _buildCustomerSelector() {
+    return DropdownButtonFormField<Customer>(
+      value: _selectedCustomer,
+      hint: const Text('Seleccionar Cliente (Público General)'),
+      isExpanded: true,
+      items: _customers.map<DropdownMenuItem<Customer>>((Customer customer) {
+        return DropdownMenuItem<Customer>(
+          value: customer,
+          child: Text(customer.fullName),
+        );
+      }).toList(),
+      onChanged: (Customer? newValue) {
+        setState(() {
+          _selectedCustomer = newValue;
+        });
+      },
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12.0),
+      ),
+    );
+  }
+
+  Widget _buildCartList() {
+    return ListView.builder(
+      itemCount: _cart.length,
+      itemBuilder: (context, index) {
+        final item = _cart[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4.0),
+          child: ListTile(
+            title: Text(item.product.name),
+            subtitle: Text(
+                '${item.quantity} x \$${item.product.price.toStringAsFixed(2)}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedCustomer,
-                    items: <String>['General Public', 'Customer A', 'Customer B'] // Example customers
-                        .map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _selectedCustomer = newValue;
-                        });
-                      }
-                    },
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12.0),
-                    ),
-                  ),
+                Text(
+                  '\$${item.totalPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // TODO: Implement Add New Customer
-                  },
-                  icon: const Icon(Icons.person_add_alt_1),
-                  label: const Text('Add New Customer'),
-                ),
+                IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    onPressed: () => _decrementQuantity(item)),
+                IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: () => _incrementQuantity(item)),
               ],
             ),
-            const SizedBox(height: 24),
+          ),
+        );
+      },
+    );
+  }
 
-            // Scan or Search Section
-            const Text(
-              'Scan or Search',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+  Widget _buildSummary() {
+    return Card(
+      elevation: 4.0,
+      margin: const EdgeInsets.only(top: 8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Subtotal:'),
+                Text('\$${_subtotal.toStringAsFixed(2)}'),
+              ],
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Find products by barcode or name.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: InputDecoration(
-                hintText: 'Search or scan barcode',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-              ),
-              onChanged: (value) {
-                // TODO: Implement search functionality
-              },
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Último dato escaneado: ${widget.lastScan}',
-              style: const TextStyle(fontSize: 16, color: Colors.blueGrey),
-            ),
-            const SizedBox(height: 16),
-
-            // Cart Section
-            if (_isCartEmpty)
-              const Center(
-                child: Text(
-                  'Cart is empty. Scan or search for a product to begin.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            // TODO: Implement displaying cart items when not empty
-
-            const Spacer(), // Pushes the summary to the bottom
-
-            // Summary Section
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Subtotal:'),
-                    Text('\$$_subtotal'),
-                  ],
+                const Text('IVA (16%):'),
+                Text('\$${_iva.toStringAsFixed(2)}'),
+              ],
+            ),
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Total:', style: Theme.of(context).textTheme.titleLarge),
+                Text('\$${_total.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                OutlinedButton(
+                  onPressed: _clearCart,
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red)),
+                  child: const Text('Cancelar'),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('IVA (16%):'),
-                    Text('\$$_iva'),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Total:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Implementar lógica de pago
+                    },
+                    icon: const Icon(Icons.payment),
+                    label: const Text('Proceder al Pago'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
                     ),
-                    Text(
-                      '\$$_total',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // TODO: Implement proceed to payment
-                  },
-                  icon: const Icon(Icons.payment),
-                  label: const Text('Proceed to Payment'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50), // Make button full width
-                    backgroundColor: Colors.deepPurple, // Example color
-                    foregroundColor: Colors.white,
                   ),
                 ),
               ],
             ),
           ],
         ),
-      );
+      ),
+    );
   }
 }

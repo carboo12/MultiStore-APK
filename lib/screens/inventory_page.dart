@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:myapp/model/product_model.dart';
+import 'package:myapp/screens/add_edit_product_screen.dart';
 
 class InventoryPage extends StatefulWidget {
-  final String lastScan;
-  const InventoryPage({super.key, required this.lastScan});
+  final bool isAdmin;
+  const InventoryPage({super.key, required this.isAdmin});
 
   @override
-  _InventoryPageState createState() => _InventoryPageState();
+  State<InventoryPage> createState() => _InventoryPageState();
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  final TextEditingController _searchController = TextEditingController();
-  final bool _hasProducts = false; // Set to true if you have products to display
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {}); // Rebuild on text change
+    });
+  }
 
   @override
   void dispose() {
@@ -18,101 +28,154 @@ class _InventoryPageState extends State<InventoryPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Product Inventory',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+  void _showOptionsDialog(BuildContext context, Product product) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(product.name),
+          content: const Text('¿Qué desea hacer?'),
+          actions: <Widget>[
+            if (widget.isAdmin)
+              TextButton(
+                child: const Text('Eliminar'),
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  _showDeleteConfirmation(context, product);
+                },
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Manage your products and view their inventory status.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterButton('All'),
-                        const SizedBox(width: 8),
-                        _buildFilterButton('Active'),
-                        const SizedBox(width: 8),
-                        _buildFilterButton('Draft'),
-                      ],
+            if (widget.isAdmin)
+              TextButton(
+                child: const Text('Modificar'),
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          AddEditProductScreen(product: product),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.document_scanner_outlined),
-                  onPressed: () {
-                    // TODO: Implement document scan action
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Último dato escaneado: ${widget.lastScan}',
-              style: const TextStyle(fontSize: 16, color: Colors.blueGrey),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search products...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
+                  );
+                },
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _hasProducts
-                  ? ListView.builder(
-                      itemCount: 0, // Replace with your actual product list count
-                      itemBuilder: (context, index) {
-                        // TODO: Build your product list items here
-                        return Container(); // Placeholder
-                      },
-                    )
-                  : const Center(
-                      child: Text('No products found.'),
-                    ),
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
           ],
-        ),
-      );
+        );
+      },
+    );
   }
 
-  Widget _buildFilterButton(String text) {
-    return ElevatedButton(
-      onPressed: () {
-        // TODO: Implement filter action
+  void _showDeleteConfirmation(BuildContext context, Product product) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirmar Eliminación'),
+          content: Text(
+              '¿Está seguro de que desea eliminar "${product.name}"? Esta acción no se puede deshacer.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Eliminar'),
+              onPressed: () async {
+                await product.delete();
+                if (!context.mounted) return;
+                Navigator.of(dialogContext).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('"${product.name}" eliminado.')),
+                );
+              },
+            ),
+          ],
+        );
       },
-      style: ElevatedButton.styleFrom(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar por nombre o código...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () => _searchController.clear(),
+                    )
+                  : null,
+            ),
+          ),
         ),
-        // Add styles for selected/unselected states if needed
-      ),
-      child: Text(text),
+        Expanded(
+          child: ValueListenableBuilder<Box<Product>>(
+            valueListenable: Hive.box<Product>('products').listenable(),
+            builder: (context, box, _) {
+              final allProducts = box.values.toList().cast<Product>();
+              final searchQuery = _searchController.text.toLowerCase();
+
+              final filteredProducts = allProducts.where((product) {
+                final nameMatch = product.name.toLowerCase().contains(searchQuery);
+                final barcodeMatch = product.barcode.toLowerCase().contains(searchQuery);
+                return nameMatch || barcodeMatch;
+              }).toList();
+
+              if (allProducts.isEmpty) {
+                return const Center(
+                  child: Text('No hay productos en el inventario.'),
+                );
+              }
+
+              if (filteredProducts.isEmpty) {
+                return const Center(
+                  child: Text('No se encontraron productos.'),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(8.0),
+                itemCount: filteredProducts.length,
+                itemBuilder: (context, index) {
+                  final product = filteredProducts[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    child: ListTile(
+                      title: Text(product.name),
+                      subtitle: Text('Código: ${product.barcode}'),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '\$${product.price.toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text('Stock: ${product.stock}'),
+                        ],
+                      ),
+                      onTap: widget.isAdmin ? () => _showOptionsDialog(context, product) : null,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

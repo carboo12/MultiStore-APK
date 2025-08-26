@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:myapp/model/admin_model.dart';
+import 'package:myapp/model/product_model.dart';
+import 'package:myapp/model/admin_role.dart';
 import 'package:myapp/screens/login_screen.dart';
 import 'package:myapp/services/scanner_service.dart';
 import 'package:myapp/screens/inventory_page.dart';
-import '/screens/customers_page.dart';
+import 'package:myapp/screens/customers_page.dart';
+import 'package:myapp/screens/add_edit_product_screen.dart';
 import 'package:myapp/screens/billing_page.dart';
 import 'dart:async';
+
+class _DashboardTab {
+  final String label;
+  final IconData icon;
+  final Widget page;
+
+  _DashboardTab(
+      {required this.label, required this.icon, required this.page});
+}
 
 class DashboardScreen extends StatefulWidget {
   final Admin admin;
@@ -17,40 +30,70 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
-  int _hoveredIndex = -1;
 
   final ScannerService _scannerService = ScannerService();
+  final GlobalKey<_BillingPageState> _billingPageKey = GlobalKey<_BillingPageState>();
   StreamSubscription? _scanSubscription;
-  String _lastScan = 'Aún no hay datos escaneados.';
+
+  late final List<_DashboardTab> _tabs;
 
   @override
   void initState() {
     super.initState();
+
+    final bool isAdmin = widget.admin.role == AdminRole.admin;
+
+    // Define all possible tabs
+    final allTabs = [
+      _DashboardTab(
+          label: 'Inventario',
+          icon: Icons.inventory_2,
+          page: InventoryPage(isAdmin: isAdmin)),
+      if (isAdmin)
+        _DashboardTab(
+            label: 'Clientes', icon: Icons.people, page: const CustomersPage()),
+      _DashboardTab(
+          label: 'Facturación',
+          icon: Icons.receipt_long,
+          page: BillingPage(key: _billingPageKey)),
+      if (isAdmin)
+        _DashboardTab(
+            label: 'Reportes',
+            icon: Icons.bar_chart,
+            page: const Center(child: Text('Reportes'))),
+    ];
+
+    _tabs = allTabs;
+
     _scannerService.init();
     _scanSubscription = _scannerService.scanResultStream.listen((scannedData) {
-      setState(() {
-        _lastScan = scannedData;
-      });
-      _showScanResultDialog(scannedData);
+      // Si estamos en la pestaña de inventario, manejamos el escaneo.
+      final currentTabLabel = _tabs[_selectedIndex].label;
+      if (currentTabLabel == 'Inventario') {
+        _handleScan(scannedData);
+      } else if (currentTabLabel == 'Facturación') {
+        _billingPageKey.currentState?.addProductByBarcode(scannedData);
+      }
     });
   }
 
-  void _showScanResultDialog(String data) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Código Escaneado'),
-          content: Text(data, style: const TextStyle(fontSize: 18)),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        );
-      },
-    );
+  void _handleScan(String barcode) {
+    final productBox = Hive.box<Product>('products');
+    final existingProduct = productBox.values
+        .cast<Product?>()
+        .firstWhere((p) => p?.barcode == barcode, orElse: () => null);
+
+    if (existingProduct != null) {
+      // Si el producto existe, vamos a la pantalla de edición.
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (context) => AddEditProductScreen(product: existingProduct),
+      ));
+    } else {
+      // Si no existe, vamos a la pantalla de agregar con el código pre-llenado.
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (context) => AddEditProductScreen(barcode: barcode),
+      ));
+    }
   }
 
   @override
@@ -88,55 +131,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: IndexedStack(
         index: _selectedIndex,
         children: <Widget>[
-          InventoryPage(lastScan: _lastScan),
-          const CustomersPage(),
-          BillingPage(lastScan: _lastScan),
-          const Center(child: Text('Reportes', style: TextStyle(fontSize: 32))),
+          for (final tab in _tabs) tab.page,
         ],
       ),
-      floatingActionButton: _selectedIndex == 0
+      floatingActionButton: widget.admin.role == AdminRole.admin &&
+              _tabs.isNotEmpty &&
+              _tabs[_selectedIndex].label == 'Inventario'
           ? FloatingActionButton(
-              onPressed: () => _scannerService.triggerScan(true),
-              tooltip: 'Probar Escáner',
+              onPressed: () {
+                // Navega a la pantalla de agregar producto sin un código de barras.
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => const AddEditProductScreen(),
+                ));
+              },
+              tooltip: 'Agregar Producto',
               backgroundColor: Colors.deepPurple,
-              child: const Icon(Icons.qr_code_scanner, color: Colors.white),
+              child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
       bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          _buildNavItem(Icons.inventory_2, 'Inventario', 0),
-          _buildNavItem(Icons.people, 'Clientes', 1),
-          _buildNavItem(Icons.receipt_long, 'Facturación', 2),
-          _buildNavItem(Icons.bar_chart, 'Reportes', 3),
+        items: [
+          for (final tab in _tabs)
+            BottomNavigationBarItem(icon: Icon(tab.icon), label: tab.label),
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        backgroundColor: Colors.deepPurple,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
+        selectedItemColor: Colors.deepPurple,
         type: BottomNavigationBarType.fixed,
-        showUnselectedLabels: true,
       ),
-    );
-  }
-
-  BottomNavigationBarItem _buildNavItem(IconData icon, String label, int index) {
-    final isHovered = _hoveredIndex == index;
-
-    return BottomNavigationBarItem(
-      icon: MouseRegion(
-        onEnter: (_) => setState(() => _hoveredIndex = index),
-        onExit: (_) => setState(() => _hoveredIndex = -1),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          transform: isHovered
-              ? (Matrix4.identity()..translate(0.0, -8.0, 0.0))
-              : Matrix4.identity(),
-          child: Icon(icon),
-        ),
-      ),
-      label: label,
     );
   }
 }

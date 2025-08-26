@@ -212,6 +212,7 @@ class _CustomersPageState extends State<CustomersPage> {
             builder: (context) => const AddEditCustomerScreen(),
           ));
         },
+        // ignore: sort_child_properties_last
         child: const Icon(Icons.add),
         tooltip: 'Agregar Cliente',
       ),
