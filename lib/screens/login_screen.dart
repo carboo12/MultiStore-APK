@@ -13,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -23,16 +24,14 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text.trim();
+  bool _isPasswordObscured = true;
 
-    if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, ingrese usuario y contraseña.')),
-      );
+  void _login() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
     // 1. Superuser check for store registration
     if (username == 'superusu' && password == 'Id14304++') {
@@ -45,19 +44,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // 2. Admin check using Hive
     final adminBox = Hive.box<Admin>('admins');
-    Admin? foundAdmin;
-    for (final admin in adminBox.values) {
-      if (admin.username == username && admin.password == password) {
-        foundAdmin = admin;
-        break;
-      }
-    }
+    // Usamos firstWhere para encontrar al admin de una forma más concisa.
+    // El `orElse` devuelve null si no se encuentra ninguna coincidencia.
+    final foundAdmin = adminBox.values.cast<Admin?>().firstWhere(
+        (admin) => admin?.username == username && admin?.password == password,
+        orElse: () => null);
 
     if (foundAdmin != null) {
       // Navigate to Dashboard
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => DashboardScreen(admin: foundAdmin!)),
+        MaterialPageRoute(builder: (context) => DashboardScreen(admin: foundAdmin)),
         (route) => false,
       );
     } else {
@@ -71,122 +68,116 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              // Purple Icon
-              SvgPicture.asset(
-                'assets/icons/app_icon.svg', // Replace with your icon path
-                height: 80.0,
-                colorFilter: const ColorFilter.mode(Colors.deepPurple, BlendMode.srcIn),
-              ),
-              const SizedBox(height: 24.0),
-              // Title
-              const Text(
-                'Latienda Express',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 32.0,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              // Subtitle
-              const Text(
-                'Welcome back! Please login to your account.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16.0,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 48.0),
-              // Username Field
-              TextField(
-                controller: _usernameController,
-                decoration: InputDecoration(
-                  hintText: 'Enter your username',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(color: Colors.grey),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(color: Colors.deepPurple),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16.0),
-              // Password Field
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  hintText: 'Enter your password',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(color: Colors.grey),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(color: Colors.deepPurple),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24.0),
-              // Login Button
-              ElevatedButton(
-                onPressed: _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                child: const Text(
-                  'Login',
-                  style: TextStyle(fontSize: 18.0, color: Colors.white),
-                ),
-              ),
-              const SizedBox(height: 24.0),
-              // Create Account Text
-              Row(
+      backgroundColor: Colors.grey[50],
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  const Text(
-                    'First time setting up? ',
-                    style: TextStyle(fontSize: 16.0, color: Colors.black),
+                  SvgPicture.asset(
+                    'assets/icons/app_icon.svg',
+                    height: 80.0,
+                    colorFilter: const ColorFilter.mode(Colors.deepPurple, BlendMode.srcIn),
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => RegisterStoreScreen()),
-                      );
-                    },
-                    child: const Text(
-                      'Create an account',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        color: Colors.deepPurple,
-                        fontWeight: FontWeight.bold,
+                  const SizedBox(height: 24.0),
+                  const Text(
+                    'Latienda Express',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 32.0,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8.0),
+                  Text(
+                    'Welcome back! Please login to your account.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 48.0),
+                  TextFormField(
+                    controller: _usernameController,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.person_outline),
+                      hintText: 'Username',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                        borderSide: BorderSide.none,
                       ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingrese su usuario.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _isPasswordObscured,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      hintText: 'Password',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordObscured ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordObscured = !_isPasswordObscured;
+                          });
+                        },
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingrese su contraseña.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24.0),
+                  ElevatedButton(
+                    onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                    ),
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(fontSize: 18.0),
                     ),
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
+      ),),
     );
   }
 }

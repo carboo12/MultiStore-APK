@@ -3,6 +3,7 @@ import 'package:myapp/model/admin_model.dart';
 import 'package:myapp/screens/login_screen.dart';
 import 'package:myapp/services/scanner_service.dart';
 import 'package:myapp/screens/inventory_page.dart';
+import '/screens/customers_page.dart';
 import 'package:myapp/screens/billing_page.dart';
 import 'dart:async';
 
@@ -88,6 +89,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         index: _selectedIndex,
         children: <Widget>[
           InventoryPage(lastScan: _lastScan),
+          const CustomersPage(),
           BillingPage(lastScan: _lastScan),
           const Center(child: Text('Reportes', style: TextStyle(fontSize: 32))),
         ],
@@ -103,8 +105,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           _buildNavItem(Icons.inventory_2, 'Inventario', 0),
-          _buildNavItem(Icons.receipt_long, 'Facturación', 1),
-          _buildNavItem(Icons.bar_chart, 'Reportes', 2),
+          _buildNavItem(Icons.people, 'Clientes', 1),
+          _buildNavItem(Icons.receipt_long, 'Facturación', 2),
+          _buildNavItem(Icons.bar_chart, 'Reportes', 3),
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

@@ -1,3 +1,5 @@
+
+
 import 'package:hive/hive.dart';
 
 part 'store_model.g.dart';
@@ -5,28 +7,31 @@ part 'store_model.g.dart';
 @HiveType(typeId: 0)
 class Store extends HiveObject {
   @HiveField(0)
-  String name;
+  final String name;
 
   @HiveField(1)
-  String email;
+  final String email;
 
   @HiveField(2)
-  String phone;
+  final String phone;
 
   @HiveField(3)
-  String address;
+  final String address;
 
   @HiveField(4)
-  String licenseKey;
+  final String licenseKey;
 
   @HiveField(5)
-  String licensePlan;
+  final String licensePlan;
 
   @HiveField(6)
-  DateTime registrationDate;
+  final DateTime registrationDate;
 
   @HiveField(7)
-  DateTime expirationDate;
+  final DateTime expirationDate;
+
+  @HiveField(8)
+  final int numberOfUsers;
 
   Store({
     required this.name,
@@ -37,5 +42,6 @@ class Store extends HiveObject {
     required this.licensePlan,
     required this.registrationDate,
     required this.expirationDate,
+    required this.numberOfUsers,
   });
 }
