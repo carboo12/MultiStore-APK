@@ -27,7 +27,14 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
     super.initState();
     _fullNameController =
         TextEditingController(text: widget.customer?.fullName ?? '');
-    _phoneController = TextEditingController(text: widget.customer?.phone ?? '');
+
+    // Formatea el número de teléfono inicial si se está editando un cliente.
+    final initialPhone = widget.customer?.phone ?? '';
+    final formattedPhone = PhoneInputFormatter().formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: initialPhone),
+    ).text;
+    _phoneController = TextEditingController(text: formattedPhone);
     _emailController = TextEditingController(text: widget.customer?.email ?? '');
     _addressController =
         TextEditingController(text: widget.customer?.address ?? '');

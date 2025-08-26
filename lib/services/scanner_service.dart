@@ -20,13 +20,11 @@ class ScannerService {
 
   /// Inicializa el servicio, crea y configura el perfil de DataWedge y
   /// comienza a escuchar los escaneos.
-  Future<void> init() async {
+  void init() {
     try {
-      // 1. Crea un perfil para la app para no interferir con otras aplicaciones.
-      await _dataWedge.createProfile();
-
-      // 2. Escucha los resultados del escaneo.
-      // El paquete configura automáticamente el perfil para enviar los datos a la app.
+      // Escucha los resultados del escaneo.
+      // El paquete `flutter_datawedge` crea y configura automáticamente el perfil
+      // con el `profileName` proporcionado en el constructor cuando se establece la escucha.
       _scanSubscription = _dataWedge.onScanResult.listen((result) {
         if (result.data.isNotEmpty) {
           _scanResultController.add(result.data);
@@ -40,7 +38,7 @@ class ScannerService {
 
   /// Activa o desactiva el gatillo del escáner por software.
   Future<void> triggerScan(bool enable) async {
-    await _dataWedge.triggerScan(enable);
+    await _dataWedge.scannerControl(enable);
   }
 
   /// Libera los recursos del servicio. Debe ser llamado en el dispose del widget.
