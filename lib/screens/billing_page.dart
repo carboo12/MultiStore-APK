@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/model/customer_model.dart';
+import 'package:myapp/model/invoice_model.dart';
 import 'package:myapp/model/product_model.dart';
 
 class CartItem {
@@ -126,6 +127,53 @@ class BillingPageState extends State<BillingPage> {
     setState(() {
       _cart.clear();
     });
+  }
+
+  Future<void> _processPayment() async {
+    if (_cart.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El carrito está vacío.')),
+      );
+      return;
+    }
+
+    // 1. Create Invoice object
+    final newInvoice = Invoice(
+      customerName: _selectedCustomer?.fullName ?? 'Público General',
+      customerId: _selectedCustomer?.id,
+      items: _cart
+          .map((cartItem) => InvoiceItem(
+                productId: cartItem.product.id,
+                productName: cartItem.product.name,
+                quantity: cartItem.quantity,
+                price: cartItem.product.price,
+              ))
+          .toList(),
+      subtotal: _subtotal,
+      tax: _iva,
+      total: _total,
+      date: DateTime.now(),
+    );
+
+    // 2. Save invoice to Hive
+    final invoiceBox = Hive.box<Invoice>('invoices');
+    await invoiceBox.put(newInvoice.id, newInvoice);
+
+    // 3. Update product stock
+    final productBox = Hive.box<Product>('products');
+    for (final cartItem in _cart) {
+      final product = productBox.get(cartItem.product.id);
+      if (product != null) {
+        final updatedProduct = product.copyWith(stock: product.stock - cartItem.quantity);
+        await productBox.put(product.id, updatedProduct);
+      }
+    }
+
+    // 4. Clear cart and show success message
+    _clearCart();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Venta completada con éxito.'), backgroundColor: Colors.green),
+    );
   }
 
   double get _subtotal => _cart.fold(0, (sum, item) => sum + item.totalPrice);
@@ -258,7 +306,7 @@ class BillingPageState extends State<BillingPage> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // TODO: Implementar lógica de pago
+                      _processPayment();
                     },
                     icon: const Icon(Icons.payment),
                     label: const Text('Proceder al Pago'),

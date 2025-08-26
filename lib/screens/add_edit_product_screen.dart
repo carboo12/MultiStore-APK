@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
 import 'package:myapp/model/product_model.dart';
+import 'package:myapp/services/hive_service.dart';
 
 class AddEditProductScreen extends StatefulWidget {
   final Product? product;
@@ -56,7 +56,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       return;
     }
 
-    final productsBox = Hive.box<Product>('products');
     final price = double.tryParse(_priceController.text) ?? 0.0;
     final stock = int.tryParse(_stockController.text) ?? 0;
 
@@ -76,7 +75,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             stock: stock,
           );
 
-    await productsBox.put(productToSave.id, productToSave);
+    await HiveService().saveProduct(productToSave);
 
     if (mounted) {
       Navigator.of(context).pop();

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:myapp/model/store_model.dart';
 import 'package:myapp/model/admin_model.dart';
+import 'package:myapp/services/hive_service.dart';
 import 'package:myapp/model/admin_role.dart';
 import 'package:myapp/screens/login_screen.dart';
 
@@ -58,8 +58,7 @@ class _RegisterAdminAddScreenState extends State<RegisterAdminAddScreen> {
           storeLicenseKey: widget.store.licenseKey,
           role: _selectedRole);
 
-      final adminBox = Hive.box<Admin>('admins');
-      await adminBox.add(newAdmin);
+      await HiveService().saveAdmin(newAdmin);
 
       if (!mounted) return;
 

@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/model/product_model.dart';
 import 'package:myapp/screens/add_edit_product_screen.dart';
+import 'package:myapp/services/hive_service.dart';
 
 class InventoryPage extends StatefulWidget {
   final bool isAdmin;
@@ -13,17 +14,29 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final _searchController = TextEditingController();
+  Timer? _debounce;
+  final _hiveService = HiveService();
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      setState(() {}); // Rebuild on text change
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        setState(() {
+          // La UI se reconstruirá usando el texto actual del controlador
+        });
+      }
     });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -122,10 +135,10 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
         ),
         Expanded(
-          child: ValueListenableBuilder<Box<Product>>(
-            valueListenable: Hive.box<Product>('products').listenable(),
-            builder: (context, box, _) {
-              final allProducts = box.values.toList().cast<Product>();
+          child: ValueListenableBuilder(
+            valueListenable: _hiveService.getProductsListenable(),
+            builder: (context, productBox, _) {
+              final allProducts = productBox.values.toList().cast<Product>();
               final searchQuery = _searchController.text.toLowerCase();
 
               final filteredProducts = allProducts.where((product) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
 import 'package:myapp/model/store_model.dart';
+import 'package:myapp/services/hive_service.dart';
 import 'package:uuid/uuid.dart';
 
 class RegisterStoreScreen extends StatefulWidget {
@@ -36,7 +36,6 @@ class _RegisterStoreScreenState extends State<RegisterStoreScreen> {
       return;
     }
 
-    final storeBox = Hive.box<Store>('stores');
     final registrationDate = DateTime.now();
     // Por defecto, la licencia expira en un año.
     final expirationDate = registrationDate.add(const Duration(days: 365));
@@ -62,7 +61,7 @@ class _RegisterStoreScreenState extends State<RegisterStoreScreen> {
       expirationDate: expirationDate,
     );
 
-    await storeBox.put(licenseKey, newStore);
+    await HiveService().saveStore(newStore);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

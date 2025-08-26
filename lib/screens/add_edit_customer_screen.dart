@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
 import 'package:myapp/model/customer_model.dart';
 import 'package:myapp/utils/phone_input_formatter.dart';
+import 'package:myapp/services/hive_service.dart';
 
 class AddEditCustomerScreen extends StatefulWidget {
   final Customer? customer;
@@ -54,8 +54,6 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
       return;
     }
 
-    final customersBox = Hive.box<Customer>('customers');
-
     // Limpia el número de teléfono para guardar solo los dígitos, asegurando la consistencia de los datos.
     final rawPhoneNumber = _phoneController.text.replaceAll(RegExp(r'\D'), '');
 
@@ -73,7 +71,7 @@ class _AddEditCustomerScreenState extends State<AddEditCustomerScreen> {
             address: _addressController.text.trim(),
           );
 
-    await customersBox.put(customerToSave.id, customerToSave);
+    await HiveService().saveCustomer(customerToSave);
 
     if (mounted) {
       Navigator.of(context).pop();

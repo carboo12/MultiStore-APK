@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:myapp/model/admin_model.dart';
 import 'package:myapp/model/product_model.dart';
 import 'package:myapp/model/admin_role.dart';
+import 'package:myapp/services/hive_service.dart';
 import 'package:myapp/screens/login_screen.dart';
 import 'package:myapp/services/scanner_service.dart';
 import 'package:myapp/screens/inventory_page.dart';
 import 'package:myapp/screens/customers_page.dart';
 import 'package:myapp/screens/add_edit_product_screen.dart';
+import 'package:myapp/screens/reports_page.dart';
 import 'package:myapp/screens/billing_page.dart';
 import 'dart:async';
 
@@ -60,7 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _DashboardTab(
             label: 'Reportes',
             icon: Icons.bar_chart,
-            page: const Center(child: Text('Reportes'))),
+            page: const ReportsPage()),
     ];
 
     _tabs = allTabs;
@@ -78,10 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _handleScan(String barcode) {
-    final productBox = Hive.box<Product>('products');
-    final existingProduct = productBox.values
-        .cast<Product?>()
-        .firstWhere((p) => p?.barcode == barcode, orElse: () => null);
+    final existingProduct = HiveService().findProductByBarcode(barcode);
 
     if (existingProduct != null) {
       // Si el producto existe, vamos a la pantalla de edición.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:myapp/model/store_model.dart';
+import 'package:myapp/services/hive_service.dart';
 import 'package:myapp/screens/register_admin_add_screen.dart';
 
 class RegisterAdminScreen extends StatefulWidget {
@@ -29,10 +29,7 @@ class _RegisterAdminScreenState extends State<RegisterAdminScreen> {
     final storeName = _storeNameController.text.trim();
     final storeEmail = _storeEmailController.text.trim();
 
-    final storeBox = Hive.box<Store>('stores');
-    final foundStore = storeBox.values.cast<Store?>().firstWhere(
-        (store) => store?.name == storeName && store?.email == storeEmail,
-        orElse: () => null);
+    final foundStore = HiveService().findStoreByNameAndEmail(storeName, storeEmail);
 
     if (foundStore != null) {
       ScaffoldMessenger.of(context).showSnackBar(

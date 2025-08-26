@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hive/hive.dart';
 import 'package:myapp/model/admin_model.dart';
 import 'package:bcrypt/bcrypt.dart';
+import 'package:myapp/services/hive_service.dart';
 import 'package:myapp/screens/register_store_screen.dart';
 import 'package:myapp/screens/dashboard_screen.dart';
 
@@ -44,11 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // 2. Admin check using Hive
-    final adminBox = Hive.box<Admin>('admins');
     // Primero, encontramos al usuario por su nombre de usuario.
-    final potentialAdmin = adminBox.values
-        .cast<Admin?>()
-        .firstWhere((admin) => admin?.username == username, orElse: () => null);
+    final potentialAdmin = HiveService().findAdminByUsername(username);
 
     // Si encontramos un usuario, comparamos la contraseña hasheada.
     // BCrypt.checkpw se encarga de comparar el texto plano con el hash.

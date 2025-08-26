@@ -5,6 +5,7 @@ import 'package:myapp/model/customer_model.dart';
 import 'package:myapp/model/admin_role.dart';
 import 'package:myapp/model/store_model.dart';
 import 'package:myapp/model/product_model.dart';
+import 'package:myapp/model/invoice_model.dart';
 import 'package:myapp/screens/login_screen.dart';
 
 Future<void> main() async {
@@ -22,11 +23,15 @@ Future<void> main() async {
   // typeId: 2 para Customer
   // typeId: 3 para Product
   // typeId: 4 para AdminRole
+  // typeId: 5 para InvoiceItem
+  // typeId: 6 para Invoice
   Hive.registerAdapter(StoreAdapter());
   Hive.registerAdapter(AdminAdapter());
   Hive.registerAdapter(CustomerAdapter());
   Hive.registerAdapter(ProductAdapter());
   Hive.registerAdapter(AdminRoleAdapter());
+  Hive.registerAdapter(InvoiceItemAdapter());
+  Hive.registerAdapter(InvoiceAdapter());
 
   // Abre las "cajas" (boxes) de Hive donde se almacenarán los datos.
   // Es como abrir tablas en una base de datos relacional.
@@ -34,6 +39,7 @@ Future<void> main() async {
   await Hive.openBox<Admin>('admins');
   await Hive.openBox<Customer>('customers');
   await Hive.openBox<Product>('products');
+  await Hive.openBox<Invoice>('invoices');
 
   runApp(const MyApp());
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/model/customer_model.dart';
 import 'package:myapp/screens/add_edit_customer_screen.dart';
+import 'package:myapp/services/hive_service.dart';
 
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key});
@@ -12,6 +12,7 @@ class CustomersPage extends StatefulWidget {
 
 class _CustomersPageState extends State<CustomersPage> {
   final _searchController = TextEditingController();
+  final _hiveService = HiveService();
 
   @override
   void initState() {
@@ -123,10 +124,10 @@ class _CustomersPageState extends State<CustomersPage> {
             ),
           ),
           Expanded(
-            child: ValueListenableBuilder<Box<Customer>>(
-              valueListenable: Hive.box<Customer>('customers').listenable(),
-              builder: (context, box, _) {
-                final allCustomers = box.values.toList().cast<Customer>();
+            child: ValueListenableBuilder(
+              valueListenable: _hiveService.getCustomersListenable(),
+              builder: (context, customerBox, _) {
+                final allCustomers = customerBox.values.toList().cast<Customer>();
                 final searchQuery = _searchController.text.toLowerCase();
 
                 final filteredCustomers = allCustomers.where((customer) {
